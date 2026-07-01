@@ -386,10 +386,9 @@ export class CardStack extends MarkdownRenderChild {
 		);
 		if (order.some((n) => Number.isNaN(n))) return;
 
-		const before = this.source;
+		// Reordering is fully reversible by dragging, so we don't offer an undo toast.
 		this.cards = order.map((i) => this.cards[i]);
 		void this.persist(); // sets this.source synchronously to the new body
-		this.offerUndo(before, this.source, "Cards reordered");
 		window.setTimeout(() => this.renderCards(), 0);
 	}
 
