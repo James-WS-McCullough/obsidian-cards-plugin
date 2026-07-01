@@ -8,6 +8,8 @@
     "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "predeploy": "npm run build",
     "deploy": "node deploy.mjs",
+    "prepackage": "npm run build",
+    "package": "node package.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
