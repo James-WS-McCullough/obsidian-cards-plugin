@@ -1,0 +1,9 @@
+{
+  "id": "cards",
+  "name": "Cards",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.8",
+  "description": "Drag-and-drop markdown cards inside your notes. Each card holds its own markdown; stacks reorder vertically and live inline among regular text.",
+  "author": "James McCullough",
+  "isDesktopOnly": false
+}

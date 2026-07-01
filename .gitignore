@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output (generated from src/ by esbuild — see esbuild.config.mjs)
+main.js
+
+# Logs / OS / editor cruft
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Env
+.env
+.env.*

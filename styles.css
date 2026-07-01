@@ -1,0 +1,557 @@
+/* ===== Cards plugin ===== */
+
+/* Strip the chrome Obsidian wraps around code blocks so the cards sit flush on
+   the page rather than inside a bordered "component" box. Covers Live Preview
+   (.cm-embed-block) and Reading view (the direct wrapper of the stack). */
+:is(.cm-embed-block, .cm-preview-code-block, .block-language-cards, pre):has(.cards-stack),
+:has(> .cards-stack) {
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	padding: 0 !important;
+	/* Code blocks tint their background via this var — blank it for our blocks. */
+	--code-background: transparent !important;
+}
+
+.cm-embed-block:has(.cards-stack):hover {
+	box-shadow: none !important;
+}
+
+.cm-embed-block:has(.cards-stack) .edit-block-button {
+	display: none !important;
+}
+
+.cards-stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-2) 0;
+}
+
+.cards-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+/* --- Card --- */
+.cards-card {
+	--cards-strip-h: 0.7em; /* colour banner thickness */
+	position: relative;
+	width: 100%;
+	box-sizing: border-box;
+	/* Tall enough that the top buttons (delete/colour) and the bottom button
+	   (insert-below) never overlap on short, single-line cards. */
+	min-height: calc(var(--size-4-5) * 2 + var(--size-4-2) * 2);
+	display: flex;
+	flex-direction: column;
+	justify-content: center; /* centre short content so the card doesn't look empty */
+	padding: var(--size-4-3) var(--size-4-4);
+	padding-left: var(--size-4-6); /* room for the drag handle */
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+	transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease,
+		margin-bottom 140ms ease;
+}
+
+.cards-card:hover {
+	border-color: var(--background-modifier-border-hover);
+	box-shadow: var(--shadow-m);
+}
+
+/* Brightened background to make a card stand out. Mixes the card background
+   toward white so it lifts in dark mode (and stays subtle in light mode). */
+.cards-card--highlight {
+	background-color: color-mix(in srgb, var(--background-primary), white 10%);
+	border-color: var(--background-modifier-border-hover);
+}
+
+/* --- Drag handle (revealed on hover) --- */
+.cards-handle {
+	position: absolute;
+	left: var(--size-2-1);
+	top: var(--size-2-1);
+	bottom: var(--size-2-1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-4);
+	color: var(--text-faint);
+	border-radius: var(--radius-s);
+	opacity: 0;
+	cursor: grab;
+	transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.cards-card:hover .cards-handle {
+	opacity: 1;
+}
+
+/* Highlight the grab zone so it's clear where to press to drag. */
+.cards-handle:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+.cards-handle:active {
+	background-color: var(--background-modifier-active-hover);
+}
+
+.cards-handle:active {
+	cursor: grabbing;
+}
+
+.cards-handle .svg-icon {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+/* --- Right-edge buttons (revealed on hover): delete / colour / insert-below --- */
+.cards-btn {
+	position: absolute;
+	right: var(--size-4-2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--size-4-5);
+	height: var(--size-4-5);
+	color: var(--text-faint);
+	border-radius: var(--radius-s);
+	opacity: 0;
+	cursor: pointer;
+	transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.cards-card:hover .cards-btn {
+	opacity: 1;
+}
+
+.cards-btn:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.cards-btn .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+.cards-delete {
+	top: var(--size-4-2);
+}
+.cards-delete:hover {
+	color: var(--text-error);
+}
+
+/* Colour button sits at the top, just left of the delete button. */
+.cards-paint {
+	top: var(--size-4-2);
+	right: calc(var(--size-4-2) + var(--size-4-5) + var(--size-2-1));
+}
+.cards-paint:hover {
+	color: var(--text-normal);
+}
+
+.cards-add-below {
+	bottom: var(--size-4-2);
+}
+.cards-add-below:hover {
+	color: var(--color-green);
+}
+
+/* Hovering insert-below opens real space below the card (like a drop target)
+   and shows a green line centred in that opened space. */
+.cards-list .cards-card:has(.cards-add-below:hover) {
+	margin-bottom: 24px;
+}
+
+.cards-insert-line {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: -19px; /* centred within flex gap (8px) + opened margin (24px) */
+	height: 6px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--color-green) 55%, transparent);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+}
+.cards-card:has(.cards-add-below:hover) .cards-insert-line {
+	opacity: 1;
+}
+
+/* Colour strip at the bottom of a card — about as thick as a line of text. */
+.cards-color-strip {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: var(--cards-strip-h);
+	border-bottom-left-radius: var(--radius-m);
+	border-bottom-right-radius: var(--radius-m);
+	pointer-events: none;
+	/* Overlay (drawn over the inline background-color) lightens toward the top,
+	   regardless of the chosen colour. */
+	background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0) 100%);
+}
+
+/* Give the content room above the strip so they don't overlap. */
+.cards-card:has(.cards-color-strip) {
+	padding-bottom: calc(var(--cards-strip-h) + var(--size-4-3));
+}
+
+/* Lift the insert-below button above the colour strip so it doesn't overlap. */
+.cards-card:has(.cards-color-strip) .cards-add-below {
+	bottom: calc(var(--cards-strip-h) + var(--size-4-2));
+}
+
+/* --- Colour popover --- */
+.cards-color-popover {
+	z-index: 9999;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2);
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	box-shadow: var(--shadow-s);
+}
+
+.cards-swatch-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+.cards-swatch {
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 50%;
+	cursor: pointer;
+	transition: transform 80ms ease;
+}
+.cards-swatch:hover {
+	transform: scale(1.12);
+}
+
+.cards-color-input {
+	-webkit-appearance: none;
+	appearance: none;
+	background: none;
+}
+.cards-color-input::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+.cards-color-input::-webkit-color-swatch {
+	border: none;
+	border-radius: 50%;
+}
+
+.cards-swatch-clear {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	background: var(--background-primary);
+}
+.cards-swatch-clear .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* Highlight toggle. */
+.cards-toggle-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-4);
+	padding: var(--size-2-1) var(--size-2-2);
+	cursor: pointer;
+}
+
+.cards-toggle-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+}
+
+.cards-switch {
+	position: relative;
+	flex: none;
+	width: 32px;
+	height: 18px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+	transition: background-color 120ms ease;
+}
+.cards-switch::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 14px;
+	height: 14px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: var(--shadow-s);
+	transition: left 120ms ease;
+}
+.cards-switch.is-on {
+	background: var(--interactive-accent);
+}
+.cards-switch.is-on::after {
+	left: 16px;
+}
+
+/* --- Card content --- */
+.cards-card-content {
+	cursor: text;
+	min-height: 1em;
+}
+
+/* Tighten Obsidian's default block margins inside a card. */
+.cards-card-content > :first-child {
+	margin-top: 0;
+}
+.cards-card-content > :last-child {
+	margin-bottom: 0;
+}
+
+/* Match the rendered block spacing to the live-preview editor's tighter line
+   rhythm, so a card doesn't reflow when it switches between display and edit. */
+.cards-card-content :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6) {
+	margin-top: 0;
+	margin-bottom: 0;
+}
+
+/* Keep task-list checkbox alignment consistent between display and edit. The
+   display (reading) renderer indents the list and pulls the checkbox back with
+   a negative margin; the editor sits it at the line start. Flatten the display
+   list so the checkbox lines up the same in both modes. */
+.cards-card-content .contains-task-list {
+	padding-inline-start: 0;
+	margin-inline-start: 0;
+}
+
+.cards-card-content .task-list-item {
+	padding-inline-start: 0;
+}
+
+.cards-card-content .task-list-item-checkbox {
+	margin-inline-start: 0;
+	margin-inline-end: var(--size-4-2);
+	vertical-align: middle !important;
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
+}
+
+/* Flatten the live-preview editor's list-line indent so its checkbox lines up
+   with the flushed display checkbox above. Target by content (a task checkbox)
+   rather than a HyperMD class name, which varies, and override the inline
+   text-indent/padding HyperMD sets per indent level. */
+.cards-card-content .cm-line:has(.task-list-item-checkbox) {
+	padding-inline-start: 0 !important;
+	text-indent: 0 !important;
+}
+
+/* The editor doesn't strike through / mute completed tasks by default the way
+   reading view does. Apply the same variables reading view uses so a checked
+   task looks identical in both modes. */
+.cards-card-content .cm-line:has(.task-list-item-checkbox:checked) {
+	color: var(--checklist-done-color);
+	text-decoration: var(--checklist-done-decoration);
+}
+
+.cards-card-content.is-empty {
+	cursor: text;
+}
+
+.cards-placeholder {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* --- Embedded editor --- */
+/* Neutralize the embedded editor's own padding so text stays put when a card
+   switches from rendered display to edit mode (no shift in position). */
+.cards-card-content.is-editing {
+	cursor: auto;
+}
+
+.cards-card-content .cm-editor,
+.cards-card-content .cm-scroller,
+.cards-card-content .cm-contentContainer,
+.cards-card-content .cm-content {
+	padding: 0;
+	background: transparent;
+}
+
+.cards-card-content .cm-line {
+	padding: 0;
+}
+
+/* The editor's gutters (fold/line-number) would also offset content — hide. */
+.cards-card-content .cm-gutters {
+	display: none;
+}
+
+.cards-card-textarea {
+	width: 100%;
+	box-sizing: border-box;
+	resize: none;
+	border: none;
+	outline: none;
+	background: transparent;
+	color: var(--text-normal);
+	font-family: var(--font-text);
+	font-size: var(--font-text-size);
+	line-height: var(--line-height-normal);
+	padding: 0;
+}
+
+/* --- Add card button --- */
+.cards-add-row {
+	display: flex;
+	align-items: stretch;
+	gap: var(--size-4-1);
+}
+
+.cards-add-row .cards-add {
+	flex: 1;
+}
+
+.cards-add {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--size-4-1);
+	padding: var(--size-4-2);
+	color: var(--text-muted);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	font-size: var(--font-ui-small);
+	transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+/* Gear: edit this list's new-card template. Sits beside the full-width Add. */
+.cards-template-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 var(--size-4-2);
+	color: var(--text-faint);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease;
+}
+
+.cards-template-btn:hover {
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+	background-color: var(--background-modifier-hover);
+}
+
+/* A template is configured for this list. */
+.cards-template-btn.is-set {
+	color: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.cards-template-btn .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* Undo toast action. */
+.cards-undo-link {
+	color: var(--text-on-accent);
+	font-weight: var(--font-semibold);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+/* --- New-card template modal --- */
+.cards-template-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: 0;
+}
+
+.cards-template-input {
+	width: 100%;
+	resize: vertical;
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-small);
+}
+
+.cards-template-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+}
+
+.cards-add:hover {
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+	background-color: var(--background-modifier-hover);
+}
+
+.cards-add-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.cards-add-icon .svg-icon {
+	width: var(--icon-xs);
+	height: var(--icon-xs);
+}
+
+/* While a drag is in progress, suppress every card's hover affordances so other
+   cards don't flash their handle/delete or pop the "Drag to reorder" tooltip as
+   the pointer passes over them. pointer-events:none also stops the tooltip. */
+.cards-stack.is-dragging .cards-handle,
+.cards-stack.is-dragging .cards-btn {
+	opacity: 0 !important;
+	pointer-events: none !important;
+}
+
+.cards-stack.is-dragging .cards-card:hover {
+	border-color: var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+}
+
+/* --- Drag states (SortableJS) --- */
+/* The element you're moving (the "card in hand") gets a lift. */
+.cards-card--chosen {
+	box-shadow: var(--shadow-l);
+}
+
+.cards-card--drag {
+	cursor: grabbing;
+}
+
+/* The drop placeholder collapses to a thin highlighted "insert here" line
+   rather than a duplicate full card. Defined last so it wins over --chosen,
+   which is applied to the same element during a drag. */
+.cards-card--ghost {
+	height: 0.35em;
+	min-height: 0;
+	margin: var(--size-4-1) 0;
+	padding: 0;
+	border: none;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--color-green) 55%, transparent);
+	box-shadow: none;
+	overflow: hidden;
+}
+
+.cards-card--ghost > * {
+	display: none;
+}
